@@ -1,11 +1,43 @@
-You are developing a React website integrated with Firebase Firestore and Firebase Storage. The site includes an admin interface for managing subjects and projects, where each subject contains multiple projects. The main functionalities include creating, viewing, and managing subjects and projects, as well as uploading and displaying various media files associated with each project.
+I am developing a React website integrated with Firebase Firestore and Firebase Storage. The site includes an admin interface for managing subjects and projects, where each subject contains multiple projects. The main functionalities include creating, viewing, and managing subjects and projects, as well as uploading and displaying various media files associated with each project.
+
+Below I try my best to describe the project, but you can just reply with an acknowledgement, because in the next prompt I will send code that you can describe the proejct from yourself:
+
+Don't reply to this just acknowledge:
 
 Project Structure:
 
-Public Directory:
+.
+├── DescriptionPrompt.md
+├── README.md
+├── TODO.md
+├── package-lock.json
+├── package.json
+├── public
+│   ├── favicon.ico
+│   ├── index.html
+│   ├── logo192.png
+│   ├── logo512.png
+│   ├── manifest.json
+│   └── robots.txt
+└── src
+    ├── App.css
+    ├── App.js
+    ├── App.test.js
+    ├── components
+    │   ├── Admin.js
+    │   ├── Home.js
+    │   ├── Project.js
+    │   ├── ProjectAdmin.js
+    │   ├── Subject.js
+    │   └── SubjectAdmin.js
+    ├── firebase.js
+    ├── index.css
+    ├── index.js
+    ├── logo.svg
+    ├── reportWebVitals.js
+    └── setupTests.js
 
-	•	favicon.ico, logo192.png, logo512.png, manifest.json, robots.txt: Standard public assets and configuration files.
-	•	index.html: The main HTML file that serves the React application.
+4 directories, 26 files
 
 Src Directory:
 

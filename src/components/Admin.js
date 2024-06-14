@@ -4,6 +4,7 @@ import { db, storage } from '../firebase';
 import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { Link } from 'react-router-dom';
+import { formatForURL } from '../utils';
 
 function Admin() {
   const [subjects, setSubjects] = useState([]);
@@ -44,7 +45,7 @@ function Admin() {
       <ul>
         {subjects.map(subject => (
           <li key={subject.id}>
-            <Link to={`/admin/subjects/${subject.id}`}>{subject.name}</Link>
+            <Link to={`/admin/subjects/${formatForURL(subject.name)}`}>{subject.name}</Link>
           </li>
         ))}
       </ul>

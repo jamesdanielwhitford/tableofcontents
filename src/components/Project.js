@@ -4,18 +4,19 @@ import { db, storage } from '../firebase';
 import { collection, getDocs, doc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { useParams } from 'react-router-dom';
+import { formatForURL } from '../utils';
 
 function Project() {
   const { subjectName, projectName } = useParams();
   const [files, setFiles] = useState([]);
   const [videos, setVideos] = useState([]);
-  const [markdown, setMarkdown] = useState('');
+  const [markdownFiles, setMarkdownFiles] = useState([]);
 
   useEffect(() => {
     const fetchFiles = async () => {
-      const subjectDocRef = doc(collection(db, 'subjects'), subjectName);
+      const subjectDocRef = doc(collection(db, 'subjects'), formatForURL(subjectName));
       const projectsCollectionRef = collection(subjectDocRef, 'projects');
-      const projectDocRef = doc(projectsCollectionRef, projectName);
+      const projectDocRef = doc(projectsCollectionRef, formatForURL(projectName));
       const filesCollection = collection(projectDocRef, 'files');
       const filesSnapshot = await getDocs(filesCollection);
       const filesList = filesSnapshot.docs.map(doc => doc.data());
@@ -23,26 +24,44 @@ function Project() {
     };
 
     const fetchVideos = async () => {
-      const subjectDocRef = doc(collection(db, 'subjects'), subjectName);
+      const subjectDocRef = doc(collection(db, 'subjects'), formatForURL(subjectName));
       const projectsCollectionRef = collection(subjectDocRef, 'projects');
-      const projectDocRef = doc(projectsCollectionRef, projectName);
+      const projectDocRef = doc(projectsCollectionRef, formatForURL(projectName));
       const videosCollection = collection(projectDocRef, 'videos');
       const videosSnapshot = await getDocs(videosCollection);
       const videosList = videosSnapshot.docs.map(doc => doc.data());
       setVideos(videosList);
     };
 
-    const fetchMarkdown = async () => {
-      const markdownRef = ref(storage, `${subjectName}/${projectName}/README.md`);
-      const markdownURL = await getDownloadURL(markdownRef);
-      const response = await fetch(markdownURL);
-      const markdownText = await response.text();
-      setMarkdown(markdownText);
+    const fetchMarkdownFiles = async () => {
+      const subjectDocRef = doc(collection(db, 'subjects'), formatForURL(subjectName));
+      const projectsCollectionRef = collection(subjectDocRef, 'projects');
+      const projectDocRef = doc(projectsCollectionRef, formatForURL(projectName));
+      const filesCollection = collection(projectDocRef, 'files');
+      const filesSnapshot = await getDocs(filesCollection);
+      const markdownList = [];
+
+      for (const fileDoc of filesSnapshot.docs) {
+        const fileData = fileDoc.data();
+        if (fileData.name.endsWith('.md')) {
+          const fileRef = ref(storage, `${formatForURL(subjectName)}/${formatForURL(projectName)}/${fileData.name}`);
+          try {
+            const fileURL = await getDownloadURL(fileRef);
+            const response = await fetch(fileURL);
+            const markdownText = await response.text();
+            markdownList.push({ name: fileData.name, content: markdownText });
+          } catch (error) {
+            console.error('Error fetching markdown file:', error);
+          }
+        }
+      }
+
+      setMarkdownFiles(markdownList);
     };
 
     fetchFiles();
     fetchVideos();
-    fetchMarkdown();
+    fetchMarkdownFiles();
   }, [subjectName, projectName]);
 
   return (
@@ -64,8 +83,13 @@ function Project() {
           </li>
         ))}
       </ul>
-      <h2>README.md</h2>
-      <pre>{markdown}</pre>
+      <h2>Markdown Files</h2>
+      {markdownFiles.map((markdownFile, index) => (
+        <div key={index}>
+          <h3>{markdownFile.name}</h3>
+          <pre>{markdownFile.content}</pre>
+        </div>
+      ))}
     </div>
   );
 }

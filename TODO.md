@@ -1,2 +1,0 @@
-- currently a dumm.txt is created within a newly created subject folder in firesbase storage and also within newly created project folders. stop dummy.txt upload to firebase storage on Subject and project creation
-- fix spacing showing as %20 in routes, make all words capital and no spacing

@@ -4,38 +4,48 @@ import { db, storage } from '../firebase';
 import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useParams } from 'react-router-dom';
+import { formatForURL, decodeFromURL } from '../utils';
 
 function ProjectAdmin() {
   const { subjectId, projectId } = useParams();
   const [files, setFiles] = useState([]);
   const [videos, setVideos] = useState([]);
-  const [markdown, setMarkdown] = useState('');
   const [file, setFile] = useState(null);
   const [videoURL, setVideoURL] = useState('');
+  const [originalSubjectName, setOriginalSubjectName] = useState('');
+  const [originalProjectName, setOriginalProjectName] = useState('');
 
   useEffect(() => {
     const fetchMedia = async () => {
-      const subjectDocRef = doc(db, 'subjects', subjectId);
-      const projectDocRef = doc(subjectDocRef, 'projects', projectId);
+      const subjectsCollection = collection(db, 'subjects');
+      const subjectsSnapshot = await getDocs(subjectsCollection);
+      const subjectsList = subjectsSnapshot.docs.map(doc => doc.data());
 
-      const filesCollection = collection(projectDocRef, 'files');
-      const filesSnapshot = await getDocs(filesCollection);
-      const filesList = filesSnapshot.docs.map(doc => doc.data());
-      setFiles(filesList);
+      const originalSubject = decodeFromURL(subjectId, subjectsList);
+      setOriginalSubjectName(originalSubject);
 
-      const videosCollection = collection(projectDocRef, 'videos');
-      const videosSnapshot = await getDocs(videosCollection);
-      const videosList = videosSnapshot.docs.map(doc => doc.data());
-      setVideos(videosList);
+      if (originalSubject) {
+        const subjectDocRef = doc(subjectsCollection, originalSubject);
+        const projectsCollection = collection(subjectDocRef, 'projects');
+        const projectsSnapshot = await getDocs(projectsCollection);
+        const projectsList = projectsSnapshot.docs.map(doc => doc.data());
 
-      const markdownRef = ref(storage, `${subjectId}/${projectId}/README.md`);
-      try {
-        const markdownURL = await getDownloadURL(markdownRef);
-        const response = await fetch(markdownURL);
-        const markdownText = await response.text();
-        setMarkdown(markdownText);
-      } catch (error) {
-        setMarkdown('');
+        const originalProject = decodeFromURL(projectId, projectsList);
+        setOriginalProjectName(originalProject);
+
+        if (originalProject) {
+          const projectDocRef = doc(projectsCollection, originalProject);
+
+          const filesCollection = collection(projectDocRef, 'files');
+          const filesSnapshot = await getDocs(filesCollection);
+          const filesList = filesSnapshot.docs.map(doc => doc.data());
+          setFiles(filesList);
+
+          const videosCollection = collection(projectDocRef, 'videos');
+          const videosSnapshot = await getDocs(videosCollection);
+          const videosList = videosSnapshot.docs.map(doc => doc.data());
+          setVideos(videosList);
+        }
       }
     };
 
@@ -43,43 +53,41 @@ function ProjectAdmin() {
   }, [subjectId, projectId]);
 
   const uploadFile = async () => {
-    const fileRef = ref(storage, `${subjectId}/${projectId}/${file.name}`);
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
-    const subjectDocRef = doc(db, 'subjects', subjectId);
-    const projectDocRef = doc(subjectDocRef, 'projects', projectId);
-    await setDoc(doc(collection(projectDocRef, 'files'), file.name), { name: file.name, url });
-    setFile(null);
-    const filesCollection = collection(projectDocRef, 'files');
-    const filesSnapshot = await getDocs(filesCollection);
-    const filesList = filesSnapshot.docs.map(doc => doc.data());
-    setFiles(filesList);
+    if (file) {
+      const fileRef = ref(storage, `${originalSubjectName}/${originalProjectName}/${file.name}`);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      const subjectDocRef = doc(db, 'subjects', originalSubjectName);
+      const projectDocRef = doc(subjectDocRef, 'projects', originalProjectName);
+      await setDoc(doc(collection(projectDocRef, 'files'), file.name), { name: file.name, url });
+      setFile(null);
+      const filesCollection = collection(projectDocRef, 'files');
+      const filesSnapshot = await getDocs(filesCollection);
+      const filesList = filesSnapshot.docs.map(doc => doc.data());
+      setFiles(filesList);
+    }
   };
 
   const addVideo = async () => {
-    const subjectDocRef = doc(db, 'subjects', subjectId);
-    const projectDocRef = doc(subjectDocRef, 'projects', projectId);
-    await setDoc(doc(collection(projectDocRef, 'videos'), videoURL), { url: videoURL });
-    setVideoURL('');
-    const videosCollection = collection(projectDocRef, 'videos');
-    const videosSnapshot = await getDocs(videosCollection);
-    const videosList = videosSnapshot.docs.map(doc => doc.data());
-    setVideos(videosList);
+    if (videoURL.trim() !== '') {
+      const subjectDocRef = doc(db, 'subjects', originalSubjectName);
+      const projectDocRef = doc(subjectDocRef, 'projects', originalProjectName);
+      await setDoc(doc(collection(projectDocRef, 'videos'), videoURL), { url: videoURL });
+      setVideoURL('');
+      const videosCollection = collection(projectDocRef, 'videos');
+      const videosSnapshot = await getDocs(videosCollection);
+      const videosList = videosSnapshot.docs.map(doc => doc.data());
+      setVideos(videosList);
+    }
   };
 
-  const uploadMarkdown = async () => {
-    const markdownRef = ref(storage, `${subjectId}/${projectId}/README.md`);
-    await uploadBytes(markdownRef, new Blob([markdown], { type: 'text/markdown' }));
-    setMarkdown('');
-    const markdownURL = await getDownloadURL(markdownRef);
-    const response = await fetch(markdownURL);
-    const markdownText = await response.text();
-    setMarkdown(markdownText);
-  };
+  if (!originalSubjectName || !originalProjectName) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div>
-      <h1>Media for Project {projectId}</h1>
+      <h1>Media for Project {originalProjectName}</h1>
       <h2>Files</h2>
       <ul>
         {files.map((file, index) => (
@@ -96,8 +104,6 @@ function ProjectAdmin() {
           </li>
         ))}
       </ul>
-      <h2>README.md</h2>
-      <pre>{markdown}</pre>
 
       <h2>Upload File</h2>
       <input type="file" onChange={(e) => setFile(e.target.files[0])} />
@@ -111,14 +117,6 @@ function ProjectAdmin() {
         placeholder="YouTube URL"
       />
       <button onClick={addVideo}>Add Video</button>
-
-      <h2>Upload Markdown</h2>
-      <textarea
-        value={markdown}
-        onChange={(e) => setMarkdown(e.target.value)}
-        placeholder="Markdown Content"
-      ></textarea>
-      <button onClick={uploadMarkdown}>Upload Markdown</button>
     </div>
   );
 }

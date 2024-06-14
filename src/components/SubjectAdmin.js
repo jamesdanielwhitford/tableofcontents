@@ -4,6 +4,7 @@ import { db, storage } from '../firebase';
 import { collection, getDocs, setDoc, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { Link, useParams } from 'react-router-dom';
+import { formatForURL, decodeFromURL } from '../utils';
 
 function SubjectAdmin() {
   const { subjectId } = useParams();
@@ -14,13 +15,20 @@ function SubjectAdmin() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const subjectDocRef = doc(db, 'subjects', subjectId);
-      const subjectDoc = await getDoc(subjectDocRef);
-      setSubjectName(subjectDoc.data().name);
-      const projectsCollection = collection(subjectDocRef, 'projects');
-      const projectsSnapshot = await getDocs(projectsCollection);
-      const projectsList = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProjects(projectsList);
+      const subjectsCollection = collection(db, 'subjects');
+      const subjectsSnapshot = await getDocs(subjectsCollection);
+      const subjectsList = subjectsSnapshot.docs.map(doc => doc.data());
+
+      const originalName = decodeFromURL(subjectId, subjectsList);
+      setSubjectName(originalName);
+
+      if (originalName) {
+        const subjectDocRef = doc(subjectsCollection, originalName);
+        const projectsCollection = collection(subjectDocRef, 'projects');
+        const projectsSnapshot = await getDocs(projectsCollection);
+        const projectsList = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setProjects(projectsList);
+      }
     };
 
     fetchProjects();
@@ -28,7 +36,7 @@ function SubjectAdmin() {
 
   const addProject = async () => {
     if (newProject.trim() === '') return;
-    const subjectDocRef = doc(db, 'subjects', subjectId);
+    const subjectDocRef = doc(db, 'subjects', subjectName);
     const projectDocRef = doc(subjectDocRef, 'projects', newProject);
     await setDoc(projectDocRef, {
       name: newProject,
@@ -48,6 +56,10 @@ function SubjectAdmin() {
     setProjects(projectsList);
   };
 
+  if (!subjectName) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div>
       <h1>{subjectName}</h1>
@@ -55,7 +67,7 @@ function SubjectAdmin() {
       <ul>
         {projects.map(project => (
           <li key={project.id}>
-            <Link to={`/admin/subjects/${subjectId}/projects/${project.id}`}>{project.name}</Link> - {project.description}
+            <Link to={`/admin/subjects/${formatForURL(subjectId)}/projects/${formatForURL(project.id)}`}>{project.name}</Link> - {project.description}
           </li>
         ))}
       </ul>
